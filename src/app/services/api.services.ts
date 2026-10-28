@@ -25,7 +25,7 @@ export class ApiService {
   getItems(): Observable<Item[]> {
  
     return this.http.get<RawPost[]>(this.apiUrl).pipe(
-      map(posts => {
+      map(photos => {
         return photos.map(post => ({
           ...photos,
           
@@ -37,6 +37,6 @@ export class ApiService {
 
 
   createItem(data: any): Observable<any> {
-  return this.http.post<any>(this.apiUrl, data);
+  return this.http.photos<any>(this.apiUrl, data);
   }
 }
