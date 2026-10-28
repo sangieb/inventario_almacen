@@ -1,21 +1,196 @@
 <ion-header [translucent]="true">
-  <ion-toolbar>
-    <ion-title> Blank </ion-title>
+  <ion-toolbar color="primary">
+    <ion-title>{{ config.pageTitle }}</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content [fullscreen]="true">
-  <ion-header collapse="condense">
-    <ion-toolbar>
-      <ion-title size="large">Blank</ion-title>
-    </ion-toolbar>
-  </ion-header>
+<ion-content class="ion-padding">
 
-  <div id="container">
-    <strong>Ready to create an app?</strong>
-    <p>
-      Start with Ionic
-      <a target="_blank" rel="noopener noreferrer" href="https://ionicframework.com/docs/components">UI Components</a>
-    </p>
-  </div>
+  <!-- 1. DASHBOARD DE MÉTRICAS -->
+  <ion-grid class="ion-no-padding ion-margin-bottom">
+    <ion-row>
+      <ion-col size="12" size-md="6">
+        <ion-card color="light">
+          <ion-card-header>
+            <ion-card-title>{{ config.visibleOrdersLabel }}</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <h2><strong>{{ metrics.visibleCount }}</strong></h2>
+            <p>{{ config.visibleOrdersHint }}</p>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+
+      <ion-col size="12" size-md="6">
+        <ion-card [color]="metrics.criticalCount > 0 ? 'warning' : 'medium'">
+          <ion-card-header>
+            <ion-card-title>{{ config.criticalStockLabel }}</ion-card-title>
+          </ion-card-header>
+          <ion-card-content>
+            <h2><strong>{{ metrics.criticalCount }}</strong></h2>
+            <p>Stock &lt; {{ config.stockThreshold }} {{ config.stockUnitLabel }}</p>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+
+  <!-- 2. FILTROS Y BÚSQUEDA EN TIEMPO REAL -->
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>{{ config.filtersCardTitle }}</ion-card-title>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-grid class="ion-no-padding">
+        <ion-row class="ion-align-items-center">
+          
+          <!-- Buscador por Texto -->
+          <ion-col size="12" size-md="5">
+            <ion-searchbar
+              [(ngModel)]="filters.query"
+              [placeholder]="config.searchPlaceholder"
+              animated="true"
+              show-clear-button="always">
+            </ion-searchbar>
+          </ion-col>
+
+          <!-- Filtro por Álbum -->
+          <ion-col size="12" size-md="4">
+            <ion-select
+              fill="outline"
+              labelPlacement="stacked"
+              [label]="config.albumSelectLabel"
+              [(ngModel)]="filters.album">
+              <ion-select-option value="all">{{ config.allAlbumsLabel }}</ion-select-option>
+              @for (albumId of albums; track albumId) {
+                <ion-select-option [value]="albumId">Álbum #{{ albumId }}</ion-select-option>
+              }
+            </ion-select>
+          </ion-col>
+
+          <!-- Ordenamiento -->
+          <ion-col size="12" size-md="3">
+            <ion-select
+              fill="outline"
+              labelPlacement="stacked"
+              [label]="config.sortLabel"
+              [(ngModel)]="filters.sort">
+              <ion-select-option value="none">{{ config.sortNoneLabel }}</ion-select-option>
+              <ion-select-option value="stockAsc">{{ config.sortStockAscLabel }}</ion-select-option>
+            </ion-select>
+          </ion-col>
+
+        </ion-row>
+
+        <ion-row class="ion-margin-top">
+          <ion-col size="12" class="ion-text-end">
+            <ion-button fill="clear" color="medium" (click)="resetFilters()">
+              {{ config.clearFiltersLabel }}
+            </ion-button>
+          </ion-col>
+        </ion-row>
+
+      </ion-grid>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- 3. LISTADO -->
+  @if (isLoading()) {
+    <div class="ion-text-center ion-padding">
+      <ion-spinner name="crescent" color="primary"></ion-spinner>
+      <p>Cargando fotografías...</p>
+    </div>
+  } @else if (loadError()) {
+    <ion-card color="danger">
+      <ion-card-content class="ion-text-center">
+        <p>{{ loadError() }}</p>
+        <ion-button fill="outline" color="light" (click)="loadData()">
+          {{ config.retryLabel }}
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+  } @else {
+    
+    <ion-list class="ion-margin-top">
+      @for (item of filteredItems; track item.id) {
+        <ion-item class="ion-margin-bottom">
+          
+          <ion-avatar slot="start">
+            <img [src]="item.thumbnailUrl" [alt]="item.title" />
+          </ion-avatar>
+
+          <ion-label>
+            <h2 class="ion-text-wrap">
+              <strong>{{ config.idPrefix }}{{ item.id }}</strong> - {{ item.title }}
+            </h2>
+            <p>
+              <ion-badge color="tertiary">Álbum #{{ item.albumId }}</ion-badge> | 
+              {{ config.stockLabel }}: {{ stockOf(item) }} {{ config.stockUnitLabel }}
+            </p>
+          </ion-label>
+
+          <ion-badge
+            slot="end"
+            [color]="isCriticalStock(item) ? 'danger' : 'success'">
+            {{ isCriticalStock(item) ? config.criticalLabel : config.stableLabel }}
+          </ion-badge>
+
+          <ion-button slot="end" fill="clear" (click)="openModal(item)">
+            <ion-icon name="eye-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+
+        </ion-item>
+      } @empty {
+        <div class="ion-text-center ion-padding">
+          <ion-note color="medium">{{ config.emptyListMessage }}</ion-note>
+        </div>
+      }
+    </ion-list>
+
+  }
+
+  <!-- 4. MODAL SIMPLE -->
+  <ion-modal [isOpen]="isModalOpen()" (didDismiss)="onModalDismiss()">
+    <ng-template>
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-title>{{ config.modalTitle }}</ion-title>
+          <ion-button slot="end" fill="clear" color="light" (click)="closeModal(false)">
+            <ion-icon name="close-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-toolbar>
+      </ion-header>
+
+      @if (selectedItem(); as selected) {
+        <ion-content class="ion-padding">
+          
+          <div class="ion-text-center ion-margin-bottom">
+            <img
+              [src]="selected.url"
+              [alt]="selected.title"
+              style="max-width: 100%; height: 220px; object-fit: cover; border-radius: 8px;" />
+          </div>
+
+          <h3>{{ selected.title }}</h3>
+          <p class="ion-text-wrap">
+            <ion-badge color="tertiary">Álbum #{{ selected.albumId }}</ion-badge>
+          </p>
+          <p>
+            <strong>{{ config.stockLabel }}:</strong> {{ stockOf(selected) }} {{ config.stockUnitLabel }}
+          </p>
+
+          <div class="ion-margin-top">
+            <ion-button expand="block" color="primary" (click)="closeModal(true)">
+              {{ config.confirmActionLabel }}
+            </ion-button>
+            <ion-button expand="block" fill="clear" color="medium" (click)="closeModal(false)">
+              Cancelar
+            </ion-button>
+          </div>
+
+        </ion-content>
+      }
+    </ng-template>
+  </ion-modal>
+
 </ion-content>
