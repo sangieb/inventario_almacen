@@ -1,0 +1,7 @@
+{
+  "name": "inventario_almacen",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "angular-standalone"
+}
