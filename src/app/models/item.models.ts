@@ -1,0 +1,12 @@
+export interface IPhoto {
+   albumId: number;
+   id: number;
+   title: string;
+   url: string;
+   thumbnailUrl: string;
+
+   cat: string;
+   album: string;
+
+}
+
